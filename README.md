@@ -4,8 +4,7 @@
 [![Documentation](https://docs.rs/simple-xml-builder/badge.svg)](https://docs.rs/simple-xml-builder)
 [![License](https://img.shields.io/crates/l/simple-xml-builder.svg)](https://github.com/accelbread/simple-xml-builder#license)
 
-A Rust library for building and outputting XML documents. The constructed model
-is write-only, and allows for writing the represented XML document.
+A forked Rust library for building and outputting XML documents adjusted to my need using customized escape-functions. 
 
 [Documentation](https://docs.rs/simple-xml-builder)
 
@@ -15,7 +14,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-simple-xml-builder = "1.1.0"
+simple-xml-builder = { git = "https://github.com/gNahcab/simple-xml-builder" }
 ```
 
 and this to your crate root:
@@ -24,35 +23,4 @@ and this to your crate root:
 extern crate simple_xml_builder;
 ```
 
-## Example
 
-```rust
-use std::fs::File;
-use simple_xml_builder::XMLElement;
-
-let mut file = File::create("sample.xml")?;
-
-let mut person = XMLElement::new("person");
-person.add_attribute("id", "232");
-let mut name = XMLElement::new("name");
-name.add_text("Joe Schmoe");
-person.add_child(name);
-let mut age = XMLElement::new("age");
-age.add_text("24");
-person.add_child(age);
-let hobbies = XMLElement::new("hobbies");
-person.add_child(hobbies);
-
-person.write(file)?;
-```
-
-`sample.xml` will contain:
-
-```xml
-<?xml version = "1.0" encoding = "UTF-8"?>
-<person id="232">
-    <name>Joe Schmoe</name>
-    <age>24</age>
-    <hobbies />
-</person>
-```

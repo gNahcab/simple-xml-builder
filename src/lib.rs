@@ -10,46 +10,6 @@
 //! You can write an XML document by calling
 //! [write](XMLElement::write) on your root element.
 //!
-//! # Example
-//!
-//! ```rust
-//! # use std::io;
-//! # fn main() -> io::Result<()> {
-//! use std::fs::File;
-//! use simple_xml_builder::XMLElement;
-//!
-//! # /*
-//! let mut file = File::create("sample.xml")?;
-//! # */
-//! # let mut file: Vec<u8> = Vec::new();
-//!
-//! let mut person = XMLElement::new("person");
-//! person.add_attribute("id", "232");
-//! let mut name = XMLElement::new("name");
-//! name.add_text("Joe Schmoe");
-//! person.add_child(name);
-//! let mut age = XMLElement::new("age");
-//! age.add_text(24); // `add_text` and `add_attribute` accept any type
-//!                   // that implements `ToString` (or `Display`)
-//! person.add_child(age);
-//! let hobbies = XMLElement::new("hobbies");
-//! person.add_child(hobbies);
-//!
-//! person.write(file)?;
-//! # Ok(())
-//! # }
-//! ```
-//! `sample.xml` will contain:
-//! ```xml
-//! <?xml version = "1.0" encoding = "UTF-8"?>
-//! <person id="232">
-//!     <name>Joe Schmoe</name>
-//!     <age>24</age>
-//!     <hobbies />
-//! </person>
-//! ```
-
-#![doc(html_root_url = "https://docs.rs/simple-xml-builder/1.1.0")]
 
 extern crate indexmap;
 use indexmap::IndexMap;
@@ -92,9 +52,9 @@ impl XMLElement {
 
     /// Adds an attribute to the XML element. The attribute value can take any
     /// type which implements [`fmt::Display`].
-    pub fn add_attribute(&mut self, name: impl ToString, value: impl ToString) {
+    pub fn add_attribute(&mut self, name: impl ToString, value: impl ToString, escape_str_function: &dyn Fn(&str) -> String) {
         self.attributes
-            .insert(name.to_string(), escape_str(&value.to_string()));
+            .insert(name.to_string(), escape_str_function(&value.to_string()));
     }
 
     /// Adds a child element to the XML element.
@@ -128,11 +88,11 @@ impl XMLElement {
     /// # Panics
     ///
     /// Panics if the element is not empty.
-    pub fn add_text(&mut self, text: impl ToString) {
+    pub fn add_text(&mut self, text: impl ToString, escape_str_function: &dyn Fn(&str) -> String) {
         use XMLElementContent::*;
         match self.content {
             Empty => {
-                self.content = Text(escape_str(&text.to_string()));
+                self.content = Text(escape_str_function(&text.to_string()));
             }
             _ => {
                 panic!("Attempted adding text to non-empty element.");
@@ -205,19 +165,19 @@ impl XMLElement {
     }
 }
 
-fn escape_str(input: &str) -> String {
-    input
-        .replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-}
 
 #[cfg(test)]
 mod tests {
-    use XMLElement;
+    use ::{XMLElement};
 
+    fn escape_str(input: &str) -> String {
+        input
+            .replace('&', "&amp;")
+            .replace('"', "&quot;")
+            .replace('\'', "&apos;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+    }
     #[test]
     fn write_xml() {
         let mut root = XMLElement::new("root");
@@ -225,23 +185,23 @@ mod tests {
         let inner1 = XMLElement::new("inner");
         child1.add_child(inner1);
         let mut inner2 = XMLElement::new("inner");
-        inner2.add_text("Example Text\nNew line");
+        inner2.add_text("Example Text\nNew line", &escape_str);
         child1.add_child(inner2);
         root.add_child(child1);
         let mut child2 = XMLElement::new("child2");
-        child2.add_attribute("at1", "test &");
-        child2.add_attribute("at2", "test <");
-        child2.add_attribute("at3", "test \"");
+        child2.add_attribute("at1", "test &", &escape_str);
+        child2.add_attribute("at2", "test <", &escape_str);
+        child2.add_attribute("at3", "test \"", &escape_str);
         let mut inner3 = XMLElement::new("inner");
-        inner3.add_attribute("test", "example");
+        inner3.add_attribute("test", "example", &escape_str);
         child2.add_child(inner3);
         root.add_child(child2);
         let mut child3 = XMLElement::new("child3");
-        child3.add_text("&< &");
+        child3.add_text("&< &", &escape_str);
         root.add_child(child3);
         let mut child4 = XMLElement::new("child4");
-        child4.add_attribute("non-str-attribute", 5);
-        child4.add_text(6);
+        child4.add_attribute("non-str-attribute", 5, &escape_str);
+        child4.add_text(6, &escape_str);
         root.add_child(child4);
 
         let expected = r#"<?xml version = "1.0" encoding = "UTF-8"?>
@@ -270,14 +230,14 @@ New line</inner>
     fn add_text_to_parent_element() {
         let mut e = XMLElement::new("test");
         e.add_child(XMLElement::new("test"));
-        e.add_text("example text");
+        e.add_text("example text", &escape_str);
     }
 
     #[test]
     #[should_panic]
     fn add_child_to_text_element() {
         let mut e = XMLElement::new("test");
-        e.add_text("example text");
+        e.add_text("example text", &escape_str);
         e.add_child(XMLElement::new("test"));
     }
 }
